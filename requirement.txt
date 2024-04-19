@@ -1,0 +1,5 @@
+Werkzeug==2.3.6
+Flask==2.3.2
+setuptools==65.5.0
+alembic==1.11.1
+SQLAlchemy==2.0.16
