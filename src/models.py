@@ -1,7 +1,8 @@
-#from resource.extension import db
 from src.extension import db
+
 import random
 from datetime import datetime
+
 
 class User(db.Model):
     __tablename__ = "User"

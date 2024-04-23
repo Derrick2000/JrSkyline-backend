@@ -1,25 +1,11 @@
 from flask import Blueprint, jsonify, session, g, request
-from models import User
+from src.models import User
 from werkzeug.security import check_password_hash, generate_password_hash
-from src.extension import db
-import pymysql
-import pymysql.cursors
+# from src.extension import db
 from datetime import datetime
+from src.extension import get_db_connection
 
 bp = Blueprint("authorization", __name__, url_prefix="/auth")
-
-DATABASE_HOST = "127.0.0.1"
-DATABASE_USER = 'root'
-DATABASE_PASSWORD = 'Aa54646498..'
-DATABASE_DB = 'JrSkyline'
-
-
-def get_db_connection():
-    return pymysql.connect(host=DATABASE_HOST,
-                           user=DATABASE_USER,
-                           password=DATABASE_PASSWORD,
-                           database=DATABASE_DB,
-                           cursorclass=pymysql.cursors.DictCursor)
 
 
 @bp.before_app_request
@@ -91,6 +77,7 @@ def register():
 
 @bp.route("/logout", methods=['GET'])
 def logout():
+    response_object = {'status': 'success'}
     session.clear()
-    return 1
+    return jsonify(response_object)
 
