@@ -1,9 +1,10 @@
 from flask import Blueprint, jsonify, session, g, request
-from src.models import User
+from src.models import News
 from werkzeug.security import check_password_hash, generate_password_hash
-# from src.extension import db
+from src.extension import db
 from datetime import datetime
 from src.extension import get_db_connection
+from sqlalchemy import text,event
 
 bpN = Blueprint("news", __name__, url_prefix="/news")
 
@@ -82,3 +83,44 @@ def delete_news():
         return jsonify({'error': str(e)}), 500
     finally:
         connection.close()
+
+def create_trigger():
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("SHOW TRIGGERS LIKE 'UpdateLengthy%'")
+        trigger_exists = cursor.fetchall()
+        print("Existing triggers:", trigger_exists)
+        if not trigger_exists:
+            trigger1 = '''\
+                CREATE TRIGGER UpdateLengthyEdit BEFORE UPDATE ON news
+                FOR EACH ROW
+                BEGIN
+                    IF LENGTH(NEW.content) > 500 THEN
+                        SET NEW.is_lengthy = TRUE;
+                    ELSE
+                        SET NEW.is_lengthy = FALSE;
+                    END IF;
+                END;
+                '''
+            trigger2 = '''\
+                CREATE TRIGGER UpdateLengthyNew BEFORE INSERT ON news
+                FOR EACH ROW
+                BEGIN
+                    IF LENGTH(NEW.content) > 500 THEN
+                        SET NEW.is_lengthy = TRUE;
+                    ELSE
+                        SET NEW.is_lengthy = FALSE;
+                    END IF;
+                END;
+                '''
+            cursor.execute(trigger1)
+            cursor.execute(trigger2)
+            connection.commit()
+        cursor.close()
+    except Exception as e:
+        print("Exception:",e)
+    finally:
+        connection.close()
+
+create_trigger()
