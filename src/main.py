@@ -7,7 +7,6 @@ from src.blueprints.player import bp_player
 from src.blueprints.team import bp_team
 from src.blueprints.game import bp_game
 
-
 app = Flask(__name__)
 
 app.config.from_object(config)

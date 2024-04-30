@@ -129,7 +129,6 @@ def add_player():
         cursor.callproc('UpdatePlayer', [first_name, last_name, birthdate, country, height, weight, position])
         cursor.execute("SELECT COALESCE((SELECT MAX(id) FROM player), 0) AS id")
         after_max_id = cursor.fetchone()['id']
-        print(after_max_id, before_max_id)
         assert after_max_id == before_max_id+1, "insertion failed"
     except Exception as e:
             print(f"Failed to add player: {e}")
