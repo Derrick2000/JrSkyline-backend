@@ -13,9 +13,11 @@ def get_players():
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM player WHERE last_name IS NULL;")
             sql = "SELECT * FROM player ORDER BY last_name ASC, birthdate DESC"
             cursor.execute(sql)
             players = cursor.fetchall()
+            connection.commit()
             return jsonify(players)
     except Exception as e:
         return jsonify({'status': 'failure', 'message': str(e)}), 500
@@ -69,20 +71,67 @@ def add_player():
             raise ValueError(f"values missing")
         print(f"Player add - data check")
 
-        cursor.execute("select id from player order by id desc limit 1")
-        player_id = cursor.fetchone()['id'] + 1
-        cursor.execute("SELECT id FROM team WHERE abbreviation = %s", (team_abbreviation,))
-        team_id = cursor.fetchone()['id']
-        if team_id is None:
-            raise ValueError(f"Team {team_abbreviation} not found")
+
+        cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED;")
+        cursor.execute("START TRANSACTION;")
+        cursor.execute("SELECT COALESCE((SELECT MAX(id) FROM player), 0) AS id;")
+        before_max_id = cursor.fetchone()['id']
         cursor.execute(
-            "insert into player values(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (player_id, first_name, last_name, birthdate, country, height, weight, position, team_id)
+            """SELECT COALESCE(
+                (SELECT MAX(id) FROM player),
+                0
+            )+1 INTO @player_id;
+            """
         )
-        connection.commit()
-        print(f"Player add - success")
+        cursor.execute(f"SELECT id INTO @selected_team_id FROM team WHERE abbreviation = '{team_abbreviation}';")
+        cursor.execute(
+            """
+            SELECT
+                EXISTS(
+                    SELECT 1 FROM team where id = @selected_team_id
+                )
+            INTO
+                @team_exists;
+            """
+        )
+        sql3 = """
+            CREATE PROCEDURE UpdatePlayer(
+                IN p_first_name VARCHAR(255),
+                IN p_last_name VARCHAR(255),
+                IN p_birthdate DATE,
+                IN p_country VARCHAR(255),
+                IN p_height VARCHAR(255),
+                IN p_weight DECIMAL(10, 2),
+                IN p_position VARCHAR(255)
+            )
+            BEGIN
+                INSERT INTO player(id) VALUES(@player_id);
+                IF @team_exists THEN
+                    UPDATE player
+                    SET
+                        first_name = p_first_name,
+                        last_name = p_last_name,
+                        birthdate = p_birthdate,
+                        country = p_country,
+                        height = p_height,
+                        weight = p_weight,
+                        position = p_position,
+                        team_id = @selected_team_id
+                    WHERE id = @player_id;
+                    COMMIT;
+                ELSE
+                    ROLLBACK;
+                END IF;
+            END;
+        """
+        cursor.execute(f"DROP PROCEDURE IF EXISTS UpdatePlayer;")
+        cursor.execute(sql3)
+        cursor.callproc('UpdatePlayer', [first_name, last_name, birthdate, country, height, weight, position])
+        cursor.execute("SELECT COALESCE((SELECT MAX(id) FROM player), 0) AS id")
+        after_max_id = cursor.fetchone()['id']
+        print(after_max_id, before_max_id)
+        assert after_max_id == before_max_id+1, "insertion failed"
     except Exception as e:
-            connection.rollback()
             print(f"Failed to add player: {e}")
             success = False
     finally:
