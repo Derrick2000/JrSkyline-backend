@@ -6,7 +6,6 @@ from src.blueprints.auth import bp
 from src.blueprints.team import bp_team
 from src.blueprints.game import bp_game
 
-
 app = Flask(__name__)
 
 app.config.from_object(config)
@@ -19,6 +18,5 @@ sess.init_app(app)
 app.register_blueprint(bp)
 app.register_blueprint(bp_team)
 app.register_blueprint(bp_game)
-
 
 
