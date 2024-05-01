@@ -83,7 +83,7 @@ def add_player():
             )+1 INTO @player_id;
             """
         )
-        cursor.execute(f"SELECT id INTO @selected_team_id FROM team WHERE abbreviation = '{team_abbreviation}';")
+        cursor.execute(f"SELECT MAX(id) INTO @selected_team_id FROM team GROUP BY abbreviation HAVING abbreviation = '{team_abbreviation}';")
         cursor.execute(
             """
             SELECT
