@@ -105,39 +105,36 @@ def create_game_stored_procedure():
     connection = get_db_connection()
     try:
         cursor = connection.cursor()
+        cursor.execute("Use JrSkyline;")
+        cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayedHome;")
+        cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayedAway;")
 
-        sql = """
-            SELECT ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_DEFINITION, CREATED, LAST_ALTERED
-            FROM INFORMATION_SCHEMA.ROUTINES
-            WHERE ROUTINE_TYPE = 'PROCEDURE' and ROUTINE_NAME like 'GetGamePlayed%';
-        """
-
-        cursor.execute(sql)
-        procedures = cursor.fetchall()
-
-        if not procedures:
-            sp1 = """
-                CREATE PROCEDURE GetGamePlayedHome()
-                BEGIN
+        sp1 = """
+            CREATE PROCEDURE GetGamePlayedHome()
+            BEGIN
+                IF (select count(*) from JrSkyline.team) = 30 THEN
                     SELECT home_name, COUNT(*) as num_occurrences
                     FROM (select g.id, t.name as home_name from JrSkyline.game g
                     join JrSkyline.team t on g.home_id = t.id) as temp
                     GROUP BY home_name;
-                END;
-            """
+                END IF;
+            END;
+        """
 
-            sp2 = """
-                CREATE PROCEDURE GetGamePlayedAway()
-                BEGIN
+        sp2 = """
+            CREATE PROCEDURE GetGamePlayedAway()
+            BEGIN
+                IF (select count(*) from JrSkyline.team) = 30 THEN
                     SELECT away_name, COUNT(*) as num_occurrences
                     FROM (select g.id, t.name as away_name from JrSkyline.game g
                     join JrSkyline.team t on g.away_id = t.id) as temp
                     GROUP BY away_name;
-                END;
-            """
-            cursor.execute(sp1)
-            cursor.execute(sp2)
-            connection.commit()
+                END IF;
+            END;
+        """
+        cursor.execute(sp1)
+        cursor.execute(sp2)
+        connection.commit()
 
     finally:
         connection.close()
