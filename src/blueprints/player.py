@@ -121,14 +121,26 @@ def add_player():
                         team_id = @selected_team_id
                     WHERE id = @player_id;
 
-                    IF NOT EXISTS(
-                        SELECT
-                            1
-                        FROM
-                            player
-                            LEFT JOIN team ON player.team_id = team.id
-                        WHERE team.nickname = player.first_name
-                    ) THEN
+                    SELECT
+                        EXISTS(
+                            SELECT
+                                1
+                            FROM
+                                player
+                                LEFT JOIN team ON player.team_id = team.id
+                            WHERE team.nickname = player.first_name
+                            UNION
+                            SELECT
+                                1
+                            FROM
+                                player
+                                LEFT JOIN team ON player.team_id = team.id
+                            WHERE team.nickname = player.last_name
+                    )
+                    INTO
+                        @is_different;
+
+                    IF NOT @is_different THEN
                         COMMIT;
                     ELSE
                         ROLLBACK;
