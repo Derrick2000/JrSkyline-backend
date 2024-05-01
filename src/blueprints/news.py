@@ -16,7 +16,6 @@ def get_news():
             sql = "SELECT * FROM news"
             cursor.execute(sql)
             news_data = cursor.fetchall()
-            #print(news_data)
         return jsonify(news_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500

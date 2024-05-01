@@ -83,22 +83,22 @@ def get_team_by_id(id):
     return jsonify(team)
 
 
-@bp_game.route("/getHomeGamePlayed", methods=['GET'])
+@bp_game.route("/getGamePlayed", methods=['GET'])
 def get_home_game_played():
     connection = get_db_connection()
     with connection.cursor() as cursor:
-        cursor.callproc("GetGamePlayedHome")
+        cursor.callproc("GetGamePlayed")
         result = cursor.fetchall()
     return jsonify(result)
 
 
-@bp_game.route("/getAwayGamePlayed", methods=['GET'])
-def get_away_game_played():
-    connection = get_db_connection()
-    with connection.cursor() as cursor:
-        cursor.callproc("GetGamePlayedAway")
-        result = cursor.fetchall()
-    return jsonify(result)
+# @bp_game.route("/getAwayGamePlayed", methods=['GET'])
+# def get_away_game_played():
+#     connection = get_db_connection()
+#     with connection.cursor() as cursor:
+#         cursor.callproc("GetGamePlayedAway")
+#         result = cursor.fetchall()
+#     return jsonify(result)
 
 
 def create_game_stored_procedure():
@@ -106,34 +106,65 @@ def create_game_stored_procedure():
     try:
         cursor = connection.cursor()
         cursor.execute("Use JrSkyline;")
-        cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayedHome;")
-        cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayedAway;")
+        # cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayedHome;")
+        # cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayedAway;")
+        cursor.execute("DROP PROCEDURE IF EXISTS GetGamePlayed;")
 
-        sp1 = """
-            CREATE PROCEDURE GetGamePlayedHome()
+        sp = """
+            CREATE PROCEDURE GetGamePlayed()
             BEGIN
                 IF (select count(*) from JrSkyline.team) = 30 THEN
-                    SELECT home_name, COUNT(*) as num_occurrences
-                    FROM (select g.id, t.name as home_name from JrSkyline.game g
-                    join JrSkyline.team t on g.home_id = t.id) as temp
-                    GROUP BY home_name;
+                    SELECT team_name, SUM(num_occurrences) AS total_occurrences
+                    FROM (
+                        SELECT away_name AS team_name, COUNT(*) as num_occurrences
+                        FROM (
+                            SELECT g.id, t.name as away_name
+                            FROM JrSkyline.game g
+                            JOIN JrSkyline.team t ON g.away_id = t.id
+                        ) AS temp
+                        GROUP BY away_name
+                    
+                        UNION ALL
+                    
+                        SELECT home_name AS team_name, COUNT(*) as num_occurrences
+                        FROM (
+                            SELECT g.id, t.name as home_name
+                            FROM JrSkyline.game g
+                            JOIN JrSkyline.team t ON g.home_id = t.id
+                        ) AS temp
+                        GROUP BY home_name
+                    ) AS combined
+                    GROUP BY team_name;
                 END IF;
             END;
         """
 
-        sp2 = """
-            CREATE PROCEDURE GetGamePlayedAway()
-            BEGIN
-                IF (select count(*) from JrSkyline.team) = 30 THEN
-                    SELECT away_name, COUNT(*) as num_occurrences
-                    FROM (select g.id, t.name as away_name from JrSkyline.game g
-                    join JrSkyline.team t on g.away_id = t.id) as temp
-                    GROUP BY away_name;
-                END IF;
-            END;
-        """
-        cursor.execute(sp1)
-        cursor.execute(sp2)
+        # sp1 = """
+        #     CREATE PROCEDURE GetGamePlayedHome()
+        #     BEGIN
+        #         IF (select count(*) from JrSkyline.team) = 30 THEN
+        #             SELECT home_name, COUNT(*) as num_occurrences
+        #             FROM (select g.id, t.name as home_name from JrSkyline.game g
+        #             join JrSkyline.team t on g.home_id = t.id) as temp
+        #             GROUP BY home_name;
+        #         END IF;
+        #     END;
+        # """
+        #
+        # sp2 = """
+        #     CREATE PROCEDURE GetGamePlayedAway()
+        #     BEGIN
+        #         IF (select count(*) from JrSkyline.team) = 30 THEN
+        #             SELECT away_name, COUNT(*) as num_occurrences
+        #             FROM (select g.id, t.name as away_name from JrSkyline.game g
+        #             join JrSkyline.team t on g.away_id = t.id) as temp
+        #             GROUP BY away_name;
+        #         END IF;
+        #     END;
+        # """
+        # cursor.execute(sp1)
+        # cursor.execute(sp2)
+        cursor.execute(sp)
         connection.commit()
 
     finally:
