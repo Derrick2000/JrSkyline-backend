@@ -77,13 +77,15 @@ def add_player():
         cursor.execute("SELECT COALESCE((SELECT MAX(id) FROM player), 0) AS id;")
         before_max_id = cursor.fetchone()['id']
         cursor.execute(
-            """SELECT COALESCE(
-                (SELECT MAX(id) FROM player),
-                0
-            )+1 INTO @player_id;
+            f"""
+                SELECT
+                    COALESCE((SELECT MAX(id) FROM player), 0) + 1,
+                    (SELECT MAX(id) FROM team GROUP BY abbreviation HAVING abbreviation = '{team_abbreviation}')
+                INTO
+                    @player_id,
+                    @selected_team_id;
             """
         )
-        cursor.execute(f"SELECT MAX(id) INTO @selected_team_id FROM team GROUP BY abbreviation HAVING abbreviation = '{team_abbreviation}';")
         cursor.execute(
             """
             SELECT
@@ -118,7 +120,19 @@ def add_player():
                         position = p_position,
                         team_id = @selected_team_id
                     WHERE id = @player_id;
-                    COMMIT;
+
+                    IF NOT EXISTS(
+                        SELECT
+                            1
+                        FROM
+                            player
+                            LEFT JOIN team ON player.team_id = team.id
+                        WHERE team.nickname = player.first_name
+                    ) THEN
+                        COMMIT;
+                    ELSE
+                        ROLLBACK;
+                    END IF;
                 ELSE
                     ROLLBACK;
                 END IF;
